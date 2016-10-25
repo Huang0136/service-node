@@ -9,6 +9,19 @@ import (
 	"os"
 )
 
+// 服务
+type ServiceNode int
+
+// 请求参数
+type Req struct {
+	Params map[string]interface{}
+}
+
+// 返回数据
+type Resp struct {
+	Params map[string]interface{}
+}
+
 // 服务接口结构体
 type Service struct {
 	ServiceId   string     `json:"service_id"`
