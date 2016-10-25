@@ -1,0 +1,43 @@
+/*
+  服务接口描述文档
+   <service id="" name="" remark="">
+               <inParams>
+                    <param  code="ID" name="ID" type="int" minLength="1"  length="3" require="true" />
+                </inParams>
+            </service>
+*/
+
+[
+  {
+    "service_id": "s1",
+    "service_name": "接口测试",
+    "url": "/user/{id}",
+    "method": "GetUser",
+    "remark": "la la la la",
+    "in_params": [
+      {
+        "param_code": "USER_ID",
+        "param_name": "用户ID",
+        "param_type": "integer",
+        "require": true,
+        "length": "16",
+        "remark": "用户代码"
+      }
+    ],
+    "out_params": [
+      {
+        "param_code": "USER_ID",
+        "param_name": "客户代码",
+        "param_type": "integer",
+        "remark": "测试1"
+      },
+      {
+        "param_code": "USER_NAME",
+        "param_name": "用户名称",
+        "param_type": "string",
+        "remark": "测试2"
+      }
+    ]
+  },
+  {}
+]
