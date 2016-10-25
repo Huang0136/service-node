@@ -1,0 +1,8 @@
+/*
+  服务接口描述文档
+   <service id="" name="" remark="">
+               <inParams>
+                    <param  code="ID" name="ID" type="int" minLength="1"  length="3" require="true" />
+                </inParams>
+            </service>
+*/

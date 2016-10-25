@@ -1,28 +1,75 @@
 package service
 
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"logs"
+	"os"
+)
+
+// 服务接口结构体
 type Service struct {
-	ServiceId   string
-	ServiceName string
-	URL         string
-	Method      string
-	Remark      string
-	InParams    []InParam
-	OutParams   []OutParam
+	ServiceId   string     `json:"service_id"`
+	ServiceName string     `json:"service_name"`
+	URL         string     `json:"url"`
+	MethodType  string     `json:"method_type"`
+	Method      string     `json:"method"`
+	Remark      string     `json:"remark"`
+	InParams    []InParam  `json:"in_params"`
+	OutParams   []OutParam `json:"out_params"`
 }
 
 // 入参结构体
 type InParam struct {
-	ParamCode string
-	ParamName string
-	ParamType int
-	Length    int
-	Remark    string
+	ParamCode string `json:"param_code"`
+	ParamName string `json:"param_name"`
+	ParamType string `json:"param_type"`
+	Require   bool   `json:"requrie"`
+	Length    int    `json:"length"`
+	Remark    string `json:"remark"`
 }
 
 // 出参结构体
 type OutParam struct {
-	ParamCode string
-	ParamName string
-	ParamType int
-	Remark    string
+	ParamCode string `json:"param_code"`
+	ParamName string `json:"param_name"`
+	ParamType string `json:"param_type"`
+	Remark    string `json:"remark"`
+}
+
+// 服务接口列表
+var Services []Service = make([]Service, 0)
+
+//
+func init() {
+	serviceConfig, err := os.Open("./config/service.json")
+	logs.CheckError("read service config file error:", err)
+
+	sByte, err := ioutil.ReadAll(serviceConfig)
+	logs.CheckError("read service config to byte error:", err)
+
+	err = json.Unmarshal(sByte, &Services)
+	logs.CheckError("convert byte to json error:", err)
+
+	// 打印服务接口
+	PrintlnServices()
+}
+
+// 打印服务接口列表
+func PrintlnServices() {
+	for _, s := range Services {
+		fmt.Println(ServiceToStr(s))
+	}
+}
+
+// 将服务转换成字符串
+func ServiceToStr(s Service) string {
+	b := bytes.Buffer{}
+
+	b.WriteString("接口:" + s.ServiceName + ",")
+	b.WriteString("方法:" + s.Method)
+
+	return b.String()
 }
