@@ -45,13 +45,13 @@ var Services []Service = make([]Service, 0)
 //
 func init() {
 	serviceConfig, err := os.Open("./config/service.json")
-	logs.CheckError("read service config file error:", err)
+	logs.MyDebugLog.CheckFatallnError("read service config file error:", err)
 
 	sByte, err := ioutil.ReadAll(serviceConfig)
-	logs.CheckError("read service config to byte error:", err)
+	logs.MyDebugLog.CheckFatallnError("read service config to byte error:", err)
 
 	err = json.Unmarshal(sByte, &Services)
-	logs.CheckError("convert byte to json error:", err)
+	logs.MyDebugLog.CheckFatallnError("convert byte to json error:", err)
 
 	// 打印服务接口
 	PrintlnServices()
