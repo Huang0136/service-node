@@ -1,13 +1,11 @@
 package impl
 
-import (
-	"service"
-)
-
-//
-type SI service.ServiceImpl
-
 // 根据用户Id获取用户
-func (si *SI) GetUserByUserId(userId string) {
+func (si *ServiceImpl) GetUserByUserId(userId string) {
 
+}
+
+func (si *ServiceImpl) TT(ui string) string {
+
+	return ""
 }
