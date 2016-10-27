@@ -5,7 +5,6 @@ import (
 
 	_ "monitor"
 
-	_ "github.com/coreos/etcd/clientv3"
 	_ "golang.org/x/net/context"
 
 	"log"
@@ -25,22 +24,24 @@ func main() {
 
 	}
 
-	log.Println("serverTest start...")
-	log.Println("正在注册rpc服务")
+	/*
+		log.Println("serverTest start...")
+		log.Println("正在注册rpc服务")
 
-	myServiceTest := new(service.ServiceTest)
-	rpc.Register(myServiceTest)
+		myServiceTest := new(service.ServiceTest)
+		rpc.Register(myServiceTest)
 
-	// 注册信息到注册中心
-	register.RegisterInfo()
+		// 注册信息到注册中心
+		register.RegisterInfo()
 
-	// http方式
-	rpc.HandleHTTP()
-	err := http.ListenAndServe(":9877", nil)
+		// http方式
+		rpc.HandleHTTP()
+		err := http.ListenAndServe(":9877", nil)
 
-	if err != nil {
-		log.Fatalln(err.Error())
-	}
+		if err != nil {
+			log.Fatalln(err.Error())
+		}
+	*/
 
 }
 

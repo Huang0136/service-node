@@ -1,5 +1,7 @@
 package service
 
+/*
+
 import (
 	"encoding/json"
 	"fmt"
@@ -37,3 +39,4 @@ func (s *ServiceTest) Addition(req Req, resp *Resp) error {
 
 	return nil
 }
+*/

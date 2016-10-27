@@ -55,6 +55,9 @@ type OutParam struct {
 // 服务接口列表
 var Services []Service = make([]Service, 0)
 
+// 服务接口实现
+type ServiceImpl int
+
 //
 func init() {
 	serviceConfig, err := os.Open("./config/service.json")
@@ -85,4 +88,14 @@ func ServiceToStr(s Service) string {
 	b.WriteString("方法:" + s.Method)
 
 	return b.String()
+}
+
+// 统一的rpc调用处理方法
+func (serverNode *ServiceNode) RpcCallRHandleMethod(req Req, resp *Resp) error {
+	// 方法名称
+	methodName, _ := req.Params["METHOD_NAME"].(string)
+
+	fmt.Println("MethodName:", methodName)
+
+	return nil
 }
