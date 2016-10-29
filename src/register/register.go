@@ -1,6 +1,7 @@
 package register
 
 import (
+	"logs"
 	"regexp"
 	"sync"
 	"time"
@@ -77,5 +78,11 @@ func transform() {
 	defer AllHandlers.Lock.Unlock()
 
 	// transform
+
+}
+
+// 注册节点信息到Etcd(服务节点、服务接口等信息)
+func RegisterToEtcd() {
+	logs.MyInfoLog.Println("register to etcd server")
 
 }

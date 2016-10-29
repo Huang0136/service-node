@@ -2,11 +2,10 @@ package service
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"logs"
-	"os"
+	"net/http"
+	"net/rpc"
 )
 
 // 服务
@@ -57,17 +56,9 @@ var Services []Service = make([]Service, 0)
 
 //
 func init() {
-	serviceConfig, err := os.Open("./config/service.json")
-	logs.MyDebugLog.CheckFatallnError("read service config file error:", err)
-
-	sByte, err := ioutil.ReadAll(serviceConfig)
-	logs.MyDebugLog.CheckFatallnError("read service config to byte error:", err)
-
-	err = json.Unmarshal(sByte, &Services)
-	logs.MyDebugLog.CheckFatallnError("convert byte to json error:", err)
 
 	// 打印服务接口
-	PrintlnServices()
+	//	PrintlnServices()
 }
 
 // 打印服务接口列表
@@ -95,4 +86,18 @@ func (serverNode *ServiceNode) RpcCallHandler(req Req, resp *Resp) error {
 	fmt.Println("MethodName:", methodName)
 
 	return nil
+}
+
+// 注册rpc
+func RegisterRpc() {
+	logs.MyDebugLog.Println("register rpc now...")
+
+	serviceNode := new(ServiceNode)
+	err := rpc.Register(serviceNode)
+	logs.MyErrorLog.CheckFatallnError("", err)
+
+	rpc.HandleHTTP()
+	err = http.ListenAndServe(":9090", nil)
+	logs.MyErrorLog.CheckFatallnError("", err)
+	logs.MyDebugLog.Println("register rpc success...")
 }
