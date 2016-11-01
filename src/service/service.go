@@ -6,6 +6,9 @@ import (
 	"logs"
 	"net/http"
 	"net/rpc"
+	"reflect"
+	"service/impl"
+	"validation"
 )
 
 // 服务
@@ -85,6 +88,25 @@ func (serverNode *ServiceNode) RpcCallHandler(req Req, resp *Resp) error {
 
 	fmt.Println("MethodName:", methodName)
 
+	si := new(impl.ServiceImpl)
+	si.InParams = req.Params
+
+	funcTemp := reflect.ValueOf(si).MethodByName(methodName)
+
+	// 封装入参
+	//	var inValues []reflect.Value
+
+	// 接口入参校验
+	err := validation.CheckInterfaceInParams(methodName)
+	if err != nil {
+		return err
+	}
+
+	// 反射调用
+	rfValues := funcTemp.Call(nil)
+
+	// 封装出参
+	resp.Params["result"] = string(rfValues[0].Bytes())
 	return nil
 }
 
