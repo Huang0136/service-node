@@ -1,36 +1,74 @@
-
 [
-  {
-    "service_id": "s1",
-    "service_name": "接口测试",
-    "url": "/user/{id}",
-	"method_type":"GET",
-    "method": "GetUser",
-    "remark": "la la la la",
-    "in_params": [
-      {
-        "param_code": "USER_ID",
-        "param_name": "用户ID",
-        "param_type": "integer",
-        "require": true,
-        "length": 16,
-        "remark": "用户代码"
-      }
-    ],
-    "out_params": [
-      {
-        "param_code": "USER_ID",
-        "param_name": "客户代码",
-        "param_type": "integer",
-        "remark": "测试1"
-      },
-      {
-        "param_code": "USER_NAME",
-        "param_name": "用户名称",
-        "param_type": "string",
-        "remark": "测试2"
-      }
-    ]
-  },
-  {}
+    {
+        "service_id": "s1",
+        "service_name": "获取用户信息",
+        "url": "/user/{id}",
+        "method_type": "GET",
+        "method": "GetUser",
+        "remark": "根据USER_ID获取用户信息",
+        "in_params": [
+            {
+                "param_code": "USER_ID",
+                "param_name": "用户ID",
+                "param_type": "int",
+                "require": true,
+                "length": 16,
+                "remark": "用户ID"
+            }
+        ],
+        "out_params": [
+            {
+                "param_code": "USER_ID",
+                "param_name": "客户代码",
+                "param_type": "int",
+                "remark": "测试1"
+            },
+            {
+                "param_code": "USER_NAME",
+                "param_name": "用户名称",
+                "param_type": "string",
+                "remark": "测试2"
+            }
+        ]
+    },
+    {
+        "service_id": "user2",
+        "service_name": "新增用户",
+        "url": "/user/{id}",
+        "method_type": "POST",
+        "method": "AddUser",
+        "remark": "新增用户",
+        "in_params": [
+            {
+                "param_code": "USER_ID",
+                "param_name": "用户ID",
+                "param_type": "int",
+                "require": true,
+                "length": 16,
+                "remark": "用户ID"
+            },
+            {
+                "param_code": "USER_NAME",
+                "param_name": "用户名称",
+                "param_type": "string",
+                "require": true,
+                "length": 200,
+                "remark": ""
+            }
+        ],
+        "out_params": [
+            {
+                "param_code": "USER_ID",
+                "param_name": "客户代码",
+                "param_type": "int",
+                "remark": ""
+            },
+            {
+                "param_code": "USER_NAME",
+                "param_name": "用户名称",
+                "param_type": "string",
+                "remark": ""
+            }
+        ]
+    }
 ]

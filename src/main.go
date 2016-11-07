@@ -3,6 +3,7 @@ package main
 import (
 	_ "constants"
 	"logs"
+	_ "register"
 	"service"
 	"time"
 )
@@ -16,6 +17,7 @@ func main() {
 }
 
 func init() {
+	//	register.RegisterToEtcd()
 	go service.RegisterRpc()
 
 }

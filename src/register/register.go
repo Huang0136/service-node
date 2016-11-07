@@ -1,26 +1,37 @@
 package register
 
 import (
+	"fmt"
+	"log"
 	"logs"
 	"regexp"
 	"sync"
 	"time"
+
+	"constants"
+
+	"github.com/coreos/etcd/clientv3"
+	"golang.org/x/net/context"
 )
 
 var AllHandlers Handlers
 
 func init() {
-	AllHandlers = new(Handlers)
-	AllHandlers.GetHandlers = make(map[string][]Service)
-	AllHandlers.PostHandlers = make(map[string][]Service)
-	AllHandlers.PutHandlers = make(map[string][]Service)
-	AllHandlers.DeleteHandlers = make(map[string][]Service)
-	AllHandlers.GetRegexHandlers = make(map[string][]Service)
-	AllHandlers.PostRegexHandlers = make(map[string][]Service)
-	AllHandlers.PutRegexHandlers = make(map[string][]Service)
-	AllHandlers.DeleteRegexHandlers = make(map[string][]Service)
+	// 注册到Etcd
+	RegisterToEtcd()
 
-	serverNodeList = make([]ServerNode)
+	/*
+		AllHandlers = new(Handlers)
+		AllHandlers.GetHandlers = make(map[string][]Service)
+		AllHandlers.PostHandlers = make(map[string][]Service)
+		AllHandlers.PutHandlers = make(map[string][]Service)
+		AllHandlers.DeleteHandlers = make(map[string][]Service)
+		AllHandlers.GetRegexHandlers = make(map[string][]Service)
+		AllHandlers.PostRegexHandlers = make(map[string][]Service)
+		AllHandlers.PutRegexHandlers = make(map[string][]Service)
+		AllHandlers.DeleteRegexHandlers = make(map[string][]Service)
+
+		serverNodeList = make([]ServerNode)*/
 
 }
 
@@ -83,6 +94,78 @@ func transform() {
 
 // 注册节点信息到Etcd(服务节点、服务接口等信息)
 func RegisterToEtcd() {
-	logs.MyInfoLog.Println("register to etcd server")
+	logs.MyInfoLog.Println("注册到Etcd...")
 
+	// 注册节点
+	cli, err := clientv3.New(clientv3.Config{
+		Endpoints:   []string{constants.Configs["etcd.url"]},
+		DialTimeout: 2 * time.Minute,
+	})
+
+	if err != nil {
+		log.Fatal("创建etcd clientv3失败:", err)
+	}
+	defer cli.Close()
+	fmt.Println("创建etcd clientv3成功:", cli)
+
+	/*
+		go func() {
+			// watch
+			fmt.Println("开始监听")
+			wc1 := cli.Watch(context.TODO(), "servers/127.0.0.1:9090/service001/t1", clientv3.WithPrefix())
+			fmt.Println("监听到结果")
+
+			for wcTemp := range wc1 {
+				for _, wcEvent := range wcTemp.Events {
+					fmt.Printf("1 Type:%s,key:%s,value:%s \n", wcEvent.Type, string(wcEvent.Kv.Key), string(wcEvent.Kv.Value))
+				}
+			}
+		}()
+
+		kv := clientv3.NewKV(cli)
+
+		// put
+		ctx1, cancel1 := context.WithTimeout(context.Background(), 3*time.Second)
+		_, err = kv.Put(ctx1, "servers/127.0.0.1:9090/service001/t1", "服务接口001/t1")
+		cancel1()
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		resp1, err := cli.Get(context.TODO(), "servers", clientv3.WithPrefix())
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		for kkkvvv := range resp1.Kvs {
+			fmt.Println("", kkkvvv)
+		}
+
+		// watch
+		fmt.Println("开始监听2")
+		watchChan := cli.Watch(context.TODO(), "servers/127.0.0.1:9090/service001/t1", clientv3.WithPrefix())
+		fmt.Println("监听到结果2")
+		for wcTemp := range watchChan {
+			for _, wcEvent := range wcTemp.Events {
+				fmt.Printf("2 Type:%s,key:%s,value:%s \n", wcEvent.Type, string(wcEvent.Kv.Key), string(wcEvent.Kv.Value))
+			}
+		}*/
+
+	ctx, cancel := context.WithTimeout(context.Background(), 105*time.Second)
+	resp, err := cli.Get(ctx, "s", clientv3.WithPrefix()) // /127.0.0.1:9090/service001
+	cancel()
+
+	if err != nil {
+		log.Fatal("get操作失败:", err)
+	}
+
+	fmt.Println("返回结果集:", resp)
+	for _, ev := range resp.Kvs {
+		fmt.Printf("%s:%s\n", ev.Key, ev.Value)
+	}
+
+	// 注册服务
+	// servers/ip:port/URL:MethodType
+
+	logs.MyInfoLog.Println("注册成功!")
 }

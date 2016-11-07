@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"constants"
 	"fmt"
 	"logs"
 	"net/http"
@@ -119,7 +120,7 @@ func RegisterRpc() {
 	logs.MyErrorLog.CheckFatallnError("", err)
 
 	rpc.HandleHTTP()
-	err = http.ListenAndServe(":9090", nil)
+	err = http.ListenAndServe(":"+constants.Configs["serverNode.port"], nil)
 	logs.MyErrorLog.CheckFatallnError("", err)
 	logs.MyDebugLog.Println("register rpc success...")
 }
