@@ -18,6 +18,7 @@ var AllHandlers Handlers
 
 func init() {
 	// 注册到Etcd
+	RegisterToEtcd1()
 	RegisterToEtcd()
 
 	/*
@@ -99,73 +100,113 @@ func RegisterToEtcd() {
 	// 注册节点
 	cli, err := clientv3.New(clientv3.Config{
 		Endpoints:   []string{constants.Configs["etcd.url"]},
-		DialTimeout: 2 * time.Minute,
+		DialTimeout: 1 * time.Minute,
 	})
 
 	if err != nil {
 		log.Fatal("创建etcd clientv3失败:", err)
 	}
 	defer cli.Close()
-	fmt.Println("创建etcd clientv3成功:", cli)
 
 	/*
-		go func() {
-			// watch
-			fmt.Println("开始监听")
-			wc1 := cli.Watch(context.TODO(), "servers/127.0.0.1:9090/service001/t1", clientv3.WithPrefix())
-			fmt.Println("监听到结果")
-
-			for wcTemp := range wc1 {
-				for _, wcEvent := range wcTemp.Events {
-					fmt.Printf("1 Type:%s,key:%s,value:%s \n", wcEvent.Type, string(wcEvent.Kv.Key), string(wcEvent.Kv.Value))
-				}
-			}
-		}()
-
-		kv := clientv3.NewKV(cli)
-
-		// put
-		ctx1, cancel1 := context.WithTimeout(context.Background(), 3*time.Second)
-		_, err = kv.Put(ctx1, "servers/127.0.0.1:9090/service001/t1", "服务接口001/t1")
-		cancel1()
+		delResp, err := cli.Delete(context.TODO(), "", clientv3.WithPrefix())
 		if err != nil {
-			log.Fatalln(err)
+			log.Fatalln("delete error:", err)
 		}
+		fmt.Println("删除成功", delResp)
+	*/
 
-		resp1, err := cli.Get(context.TODO(), "servers", clientv3.WithPrefix())
-		if err != nil {
-			fmt.Println(err)
-		}
+	// 10秒后设置值
+	time.Sleep(5 * time.Second)
 
-		for kkkvvv := range resp1.Kvs {
-			fmt.Println("", kkkvvv)
-		}
-
-		// watch
-		fmt.Println("开始监听2")
-		watchChan := cli.Watch(context.TODO(), "servers/127.0.0.1:9090/service001/t1", clientv3.WithPrefix())
-		fmt.Println("监听到结果2")
-		for wcTemp := range watchChan {
-			for _, wcEvent := range wcTemp.Events {
-				fmt.Printf("2 Type:%s,key:%s,value:%s \n", wcEvent.Type, string(wcEvent.Kv.Key), string(wcEvent.Kv.Value))
-			}
-		}*/
-
-	ctx, cancel := context.WithTimeout(context.Background(), 105*time.Second)
-	resp, err := cli.Get(ctx, "s", clientv3.WithPrefix()) // /127.0.0.1:9090/service001
-	cancel()
-
+	// 设置超时
+	gresp, err := cli.Grant(context.Background(), 20)
 	if err != nil {
-		log.Fatal("get操作失败:", err)
+		log.Fatalln("grant失败:", err, ",", gresp)
 	}
 
-	fmt.Println("返回结果集:", resp)
-	for _, ev := range resp.Kvs {
-		fmt.Printf("%s:%s\n", ev.Key, ev.Value)
+	// put
+	putResp, err := cli.Put(context.Background(), "servers/127.0.0.1:9090", "这是服务节点server-node,Time:"+time.Now().Format("2006-01-02 15:04:05.999")) //, clientv3.WithLease(gresp.ID)
+	if err != nil {
+		log.Fatalln("设值失败:", err)
 	}
+	fmt.Println("服务节点注册成功:", putResp)
+
+	/*
+		time.Sleep(3 * time.Second)
+		// put
+		putResp1, err := cli.Put(context.TODO(), "servers/127.0.0.1:9090/service_001", "服务接口001")
+		if err != nil {
+			log.Fatalln("设值失败2:", err)
+		}
+		fmt.Println("服务节点注册成功2:", putResp1)
+	*/
 
 	// 注册服务
 	// servers/ip:port/URL:MethodType
 
 	logs.MyInfoLog.Println("注册成功!")
+}
+
+func RegisterToEtcd1() {
+	logs.MyInfoLog.Println("监听Etcd...")
+
+	// 注册节点
+	cli, err := clientv3.New(clientv3.Config{
+		Endpoints:   []string{constants.Configs["etcd.url"]},
+		DialTimeout: 1 * time.Hour,
+	})
+
+	if err != nil {
+		log.Fatal("创建etcd clientv3失败:", err)
+	}
+	defer cli.Close()
+
+	// watch
+	go func() {
+		count := 1
+	WatchBlock:
+		{
+			//			fmt.Println("开始监听服务节点", count, time.Now().Format("2006-01-02 15:04:05.999"))
+			wc1 := cli.Watch(context.Background(), "servers/127.0.0.1:9090")
+			//			fmt.Println("监听到服务节点变化", count, time.Now().Format("2006-01-02 15:04:05.999"))
+
+			/*
+				for wcTemp := range wc1 {
+					for _, wcEvent := range wcTemp.Events {
+						fmt.Printf("1 Type:%s,key:%s,value:%s \n", wcEvent.Type, string(wcEvent.Kv.Key), string(wcEvent.Kv.Value))
+					}
+				}
+			*/
+
+			//			fmt.Println("我想执行1 ", count, " ", time.Now())
+			//			watchResp := <-wc1
+
+			//			fmt.Println(watchResp, "==========", watchResp.Header.Revision)
+			//			for _, e := range watchResp.Events {
+			//				fmt.Printf("Type:%s,key:%s,value:%s ,Time:%s\n", e.Type, e.Kv.Key, e.Kv.Value, time.Now().Format("2006-01-02 15:04:05.999"))
+			//			}
+
+			for wresp := range wc1 {
+				for _, ev := range wresp.Events {
+					fmt.Printf("监听到信息,%s %q : %q\n", ev.Type, ev.Kv.Key, ev.Kv.Value)
+				}
+			}
+			//			fmt.Println("我想执行2 ", count, " ", time.Now())
+
+			count++
+			if count > 100000000 {
+				goto bb
+			}
+			goto WatchBlock
+		}
+
+	bb:
+		{
+			fmt.Println("已然结束!")
+		}
+
+	}()
+
+	logs.MyInfoLog.Println("监听Etcd结束!")
 }
