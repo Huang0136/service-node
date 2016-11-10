@@ -2,7 +2,6 @@ package register
 
 import (
 	"fmt"
-	"log"
 	"logs"
 	"regexp"
 	"sync"
@@ -95,118 +94,121 @@ func transform() {
 
 // 注册节点信息到Etcd(服务节点、服务接口等信息)
 func RegisterToEtcd() {
-	logs.MyInfoLog.Println("注册到Etcd...")
+	logs.MyInfoLog.Println("开始注册节点信息到Etcd...")
 
-	// 注册节点
+	// 获取连接
 	cli, err := clientv3.New(clientv3.Config{
 		Endpoints:   []string{constants.Configs["etcd.url"]},
 		DialTimeout: 1 * time.Minute,
 	})
-
-	if err != nil {
-		log.Fatal("创建etcd clientv3失败:", err)
-	}
+	logs.MyErrorLog.CheckFatallnError("创建etcd clientv3失败:", err)
 	defer cli.Close()
 
-	/*
-		delResp, err := cli.Delete(context.TODO(), "", clientv3.WithPrefix())
-		if err != nil {
-			log.Fatalln("delete error:", err)
-		}
-		fmt.Println("删除成功", delResp)
-	*/
-
-	// 10秒后设置值
+	// 暂停5秒
 	time.Sleep(5 * time.Second)
 
-	// 设置超时
-	gresp, err := cli.Grant(context.Background(), 20)
-	if err != nil {
-		log.Fatalln("grant失败:", err, ",", gresp)
+	// 设置约租
+	leaseGrantResp, err := cli.Grant(context.Background(), 10)
+	logs.MyErrorLog.CheckFatallnError("约租设置失败:", err)
+
+	// 注册服务节点
+	ipPort := constants.Configs["serverNode.ip"] + ":" + constants.Configs["serverNode.port"]
+	nodeKey := "servers/" + ipPort
+	nodeInfo := "IP:" + constants.Configs["serverNode.ip"] + ",PORT:" + constants.Configs["serverNode.port"] + ";setTime:" + time.Now().Format("2006-01-02 15:04:05.9999")
+	_, err = cli.Put(context.Background(), nodeKey, nodeInfo, clientv3.WithLease(leaseGrantResp.ID))
+	logs.MyInfoLog.CheckFatallnError("注册服务节点:"+ipPort+"失败:", err)
+	logs.MyInfoLog.Println("服务节点:" + ipPort + "注册成功")
+
+	services := []string{"service_001", "service_002"}
+	// 注册服务接口
+	for _, service := range services {
+		sKey := nodeKey + "/" + service
+		sValue := service + ";setTime:" + time.Now().Format("2006-01-02 15:04:05.9999")
+
+		_, err = cli.Put(context.TODO(), sKey, sValue, clientv3.WithLease(leaseGrantResp.ID))
+		logs.MyErrorLog.CheckFatallnError("注册服务接口:"+service+"失败:", err)
+		logs.MyInfoLog.Println("服务接口:" + service + "注册成功")
 	}
 
-	// put
-	putResp, err := cli.Put(context.Background(), "servers/127.0.0.1:9090", "这是服务节点server-node,Time:"+time.Now().Format("2006-01-02 15:04:05.999")) //, clientv3.WithLease(gresp.ID)
-	if err != nil {
-		log.Fatalln("设值失败:", err)
-	}
-	fmt.Println("服务节点注册成功:", putResp)
+	logs.MyInfoLog.Println("注册节点信息到Etcd完成!")
 
 	/*
-		time.Sleep(3 * time.Second)
-		// put
-		putResp1, err := cli.Put(context.TODO(), "servers/127.0.0.1:9090/service_001", "服务接口001")
-		if err != nil {
-			log.Fatalln("设值失败2:", err)
-		}
-		fmt.Println("服务节点注册成功2:", putResp1)
+		// 删除
+		delResp, err := cli.Delete(context.TODO(), "server", clientv3.WithPrefix())
+		logs.MyErrorLog.CheckPrintlnError("删除数据失败", err)
+		logs.MyInfoLog.Println("删除数据成功", delResp.Deleted)
 	*/
 
-	// 注册服务
-	// servers/ip:port/URL:MethodType
+	count := 1
+	for {
+		count++
+		// 查询
+		getResp, err := cli.Get(context.TODO(), "servers", clientv3.WithPrefix())
+		logs.MyErrorLog.CheckPaniclnError("获取etcd信息失败:", err)
 
-	logs.MyInfoLog.Println("注册成功!")
+		fmt.Println("count:", getResp.Count, ",header:", getResp.Header)
+		for _, kv1 := range getResp.Kvs {
+			fmt.Printf("key:%s,value:%s,Lease:%d \n", kv1.Key, kv1.Value, kv1.Lease)
+		}
+
+		if count == 2 {
+			lkaResp, err := cli.KeepAliveOnce(context.TODO(), leaseGrantResp.ID)
+			logs.MyErrorLog.CheckPaniclnError("重设keepAlive失败:", err)
+			logs.MyInfoLog.Println("重置成功：", lkaResp.TTL)
+
+		}
+
+		if getResp.Count == 0 {
+			fmt.Println("未查询到数据，退出")
+			break
+		}
+
+		time.Sleep(5 * time.Second)
+	}
+
 }
 
 func RegisterToEtcd1() {
-	logs.MyInfoLog.Println("监听Etcd...")
-
-	// 注册节点
-	cli, err := clientv3.New(clientv3.Config{
-		Endpoints:   []string{constants.Configs["etcd.url"]},
-		DialTimeout: 1 * time.Hour,
-	})
-
-	if err != nil {
-		log.Fatal("创建etcd clientv3失败:", err)
-	}
-	defer cli.Close()
-
-	// watch
 	go func() {
-		count := 1
-	WatchBlock:
-		{
-			//			fmt.Println("开始监听服务节点", count, time.Now().Format("2006-01-02 15:04:05.999"))
-			wc1 := cli.Watch(context.Background(), "servers/127.0.0.1:9090")
-			//			fmt.Println("监听到服务节点变化", count, time.Now().Format("2006-01-02 15:04:05.999"))
+		logs.MyInfoLog.Println("开始监听Etcd...")
 
-			/*
-				for wcTemp := range wc1 {
-					for _, wcEvent := range wcTemp.Events {
-						fmt.Printf("1 Type:%s,key:%s,value:%s \n", wcEvent.Type, string(wcEvent.Kv.Key), string(wcEvent.Kv.Value))
-					}
-				}
-			*/
+		// 连接到etcd
+		cli, err := clientv3.New(clientv3.Config{
+			Endpoints:   []string{constants.Configs["etcd.url"]},
+			DialTimeout: 100 * time.Second,
+		})
+		logs.MyErrorLog.CheckPaniclnError("监听程序创建etcd clientv3失败:", err)
+		defer cli.Close()
 
-			//			fmt.Println("我想执行1 ", count, " ", time.Now())
-			//			watchResp := <-wc1
+		/*
+			// 查询
+			getResp, err := cli.Get(context.TODO(), "1 servers", clientv3.WithPrefix())
+			logs.MyErrorLog.CheckPaniclnError("1 获取etcd信息失败:", err)
 
-			//			fmt.Println(watchResp, "==========", watchResp.Header.Revision)
-			//			for _, e := range watchResp.Events {
-			//				fmt.Printf("Type:%s,key:%s,value:%s ,Time:%s\n", e.Type, e.Kv.Key, e.Kv.Value, time.Now().Format("2006-01-02 15:04:05.999"))
-			//			}
-
-			for wresp := range wc1 {
-				for _, ev := range wresp.Events {
-					fmt.Printf("监听到信息,%s %q : %q\n", ev.Type, ev.Kv.Key, ev.Kv.Value)
-				}
+			fmt.Println("1 count:", getResp.Count, ",header:", getResp.Header)
+			for _, kv1 := range getResp.Kvs {
+				fmt.Printf("1 key:%s,value:%s,Lease:%d \n", kv1.Key, kv1.Value, kv1.Lease)
 			}
-			//			fmt.Println("我想执行2 ", count, " ", time.Now())
+		*/
 
-			count++
-			if count > 100000000 {
-				goto bb
+		logs.MyInfoLog.Println("监听grouties开始执行...")
+
+		wChan := cli.Watch(context.TODO(), "servers", clientv3.WithPrefix())
+
+		for wc1 := range wChan {
+			for {
+
 			}
-			goto WatchBlock
 		}
 
-	bb:
-		{
-			fmt.Println("已然结束!")
-		}
+		wc := <-wChan
 
+		fmt.Printf("监听到结果,canceled:%t,created:%t,Header:%d,isProgressNotify:%t \n", wc.Canceled, wc.Created, wc.Header, wc.IsProgressNotify())
+		for _, e := range wc.Events {
+			fmt.Printf("isCreate:%t,isModify:%t,Type:%s,Key:%s,Value:%s \n", e.IsCreate(), e.IsModify(), e.Type, e.Kv.Key, e.Kv.Value)
+		}
+		logs.MyInfoLog.Println("监听grouties执行结束!")
+
+		logs.MyInfoLog.Println("监听Etcd结束!")
 	}()
-
-	logs.MyInfoLog.Println("监听Etcd结束!")
 }
