@@ -3,16 +3,20 @@ package service
 import (
 	"bytes"
 	"constants"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"logs"
 	"net/http"
 	"net/rpc"
+	"os"
 	"reflect"
 	"service/impl"
+	"time"
 	"validation"
 )
 
-// 服务
+// 服务节点
 type ServiceNode int
 
 // 请求参数
@@ -60,6 +64,25 @@ var Services []Service = make([]Service, 0)
 
 //
 func init() {
+	// 读取服务接口配置文件
+	readServiceConfig()
+
+	go func() {
+		time.Sleep(5 * time.Second)
+
+		fmt.Println("my name:", constants.MyName)
+
+		// 数据库操作
+		si1 := new(impl.ServiceImpl)
+		si1.InParams = make(map[string]interface{})
+		si1.InParams["USER_ID"] = "2"
+
+		str, err := si1.GetUserByUserId()
+		if err != nil {
+			fmt.Println("执行失败:", err)
+		}
+		fmt.Printf("mysql返回结果:%s \n", str)
+	}()
 
 	// 打印服务接口
 	//	PrintlnServices()
@@ -123,4 +146,16 @@ func RegisterRpc() {
 	err = http.ListenAndServe(":"+constants.Configs["serverNode.port"], nil)
 	logs.MyErrorLog.CheckFatallnError("", err)
 	logs.MyDebugLog.Println("register rpc success...")
+}
+
+// 读取服务接口配置文件
+func readServiceConfig() {
+	serviceConfig, err := os.Open("./config/service.json")
+	logs.MyDebugLog.CheckFatallnError("read service config file error:", err)
+
+	sByte, err := ioutil.ReadAll(serviceConfig)
+	logs.MyDebugLog.CheckFatallnError("read service config to byte error:", err)
+
+	err = json.Unmarshal(sByte, &Services)
+	logs.MyDebugLog.CheckFatallnError("convert byte to json error:", err)
 }

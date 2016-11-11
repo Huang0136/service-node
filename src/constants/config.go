@@ -13,7 +13,6 @@ import (
 // 节点配置信息
 var Configs map[string]string = make(map[string]string)
 
-// 初始化
 func init() {
 	readServerNodeProperties()
 	getIpv4()
@@ -22,30 +21,6 @@ func init() {
 		for k, v := range Configs {
 			fmt.Printf("%s = %s\n", k, v)
 		}*/
-}
-
-// 获取本机ip
-func getIpv4() {
-	/*
-		addrs, err := net.InterfaceAddrs()
-		if err != nil {
-			logs.MyErrorLog.CheckFatallnError("获取本地ip失败", err)
-		}
-
-		for _, addr := range addrs {
-			fmt.Println(addr)
-			if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-				if ipnet.IP.To4() != nil {
-					Configs["serverNode.ip"] = ipnet.IP.String()
-				}
-			}
-		}*/
-
-	conn, err := net.Dial("udp", "www.hao123.com:80")
-	logs.MyErrorLog.CheckPaniclnError("连接hao123失败", err)
-
-	Configs["serverNode.ip"] = strings.Split(conn.LocalAddr().String(), ":")[0]
-
 }
 
 // 读取server-node配置文件
@@ -70,4 +45,28 @@ func readServerNodeProperties() {
 	}
 
 	logs.MyInfoLog.Println("server-node.properties配置文件读取完成!")
+}
+
+// 获取本机IP
+func getIpv4() {
+	/*
+		addrs, err := net.InterfaceAddrs()
+		if err != nil {
+			logs.MyErrorLog.CheckFatallnError("获取本地ip失败", err)
+		}
+
+		for _, addr := range addrs {
+			fmt.Println(addr)
+			if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+				if ipnet.IP.To4() != nil {
+					Configs["serverNode.ip"] = ipnet.IP.String()
+				}
+			}
+		}
+	*/
+
+	conn, err := net.Dial("udp", "www.hao123.com:80")
+	logs.MyErrorLog.CheckPaniclnError("连接到www.hao123.com失败", err)
+
+	Configs["serverNode.ip"] = strings.Split(conn.LocalAddr().String(), ":")[0] // 本机的IP
 }

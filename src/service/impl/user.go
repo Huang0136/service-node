@@ -3,6 +3,7 @@ package impl
 import (
 	"bytes"
 	"constants"
+	"fmt"
 	"logs"
 	"strconv"
 	"time"
@@ -15,10 +16,12 @@ type User struct {
 }
 
 // 根据用户Id获取用户
-func (si *ServiceImpl) GetUserByUserId() string {
+func (si *ServiceImpl) GetUserByUserId() (msg string, err error) {
 	userId := si.InParams["USER_ID"].(string)
 
 	sql := "select * from user where id = ?"
+
+	fmt.Println("MySQL is null:", &constants.MySQLDB, "::::", constants.MySQLDB)
 
 	stat, err := constants.MySQLDB.Prepare(sql)
 	logs.MyErrorLog.CheckPrintlnError("prepare:", err)
@@ -63,7 +66,8 @@ func (si *ServiceImpl) GetUserByUserId() string {
 
 	}
 	b.WriteString("]")
-	return b.String()
+
+	return b.String(), nil
 
 }
 

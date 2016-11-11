@@ -4,7 +4,7 @@ import (
 	_ "constants"
 	"logs"
 	_ "register"
-	"service"
+	_ "service"
 	"time"
 )
 
@@ -17,7 +17,13 @@ func main() {
 }
 
 func init() {
+	// 初始化
+	//	constants.init()
+
+	// 注册节点和服务接口到etcd
 	//	register.RegisterToEtcd()
-	go service.RegisterRpc()
+
+	// 开启rpc监听
+	//	go service.RegisterRpc()
 
 }

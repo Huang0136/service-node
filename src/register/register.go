@@ -9,31 +9,16 @@ import (
 
 	"constants"
 
+	"net/http"
+	"net/rpc"
+
+	"service"
+
 	"github.com/coreos/etcd/clientv3"
 	"golang.org/x/net/context"
 )
 
 var AllHandlers Handlers
-
-func init() {
-	// 注册到Etcd
-	RegisterToEtcd1()
-	RegisterToEtcd()
-
-	/*
-		AllHandlers = new(Handlers)
-		AllHandlers.GetHandlers = make(map[string][]Service)
-		AllHandlers.PostHandlers = make(map[string][]Service)
-		AllHandlers.PutHandlers = make(map[string][]Service)
-		AllHandlers.DeleteHandlers = make(map[string][]Service)
-		AllHandlers.GetRegexHandlers = make(map[string][]Service)
-		AllHandlers.PostRegexHandlers = make(map[string][]Service)
-		AllHandlers.PutRegexHandlers = make(map[string][]Service)
-		AllHandlers.DeleteRegexHandlers = make(map[string][]Service)
-
-		serverNodeList = make([]ServerNode)*/
-
-}
 
 // 处理方法
 type Handlers struct {
@@ -78,8 +63,27 @@ type Service struct {
 	RegexStr    regexp.Regexp // 正则表达式
 }
 
-// 监听注册中心Etcd
-func watch() {
+var registerChan chan (bool) = make(chan bool)
+
+func init() {
+	// 注册到Etcd
+	go registerToEtcd()
+	<-registerChan // 阻塞等待注册完成
+
+	registerRpc()
+
+	/*
+		AllHandlers = new(Handlers)
+		AllHandlers.GetHandlers = make(map[string][]Service)
+		AllHandlers.PostHandlers = make(map[string][]Service)
+		AllHandlers.PutHandlers = make(map[string][]Service)
+		AllHandlers.DeleteHandlers = make(map[string][]Service)
+		AllHandlers.GetRegexHandlers = make(map[string][]Service)
+		AllHandlers.PostRegexHandlers = make(map[string][]Service)
+		AllHandlers.PutRegexHandlers = make(map[string][]Service)
+		AllHandlers.DeleteRegexHandlers = make(map[string][]Service)
+
+		serverNodeList = make([]ServerNode)*/
 
 }
 
@@ -93,7 +97,7 @@ func transform() {
 }
 
 // 注册节点信息到Etcd(服务节点、服务接口等信息)
-func RegisterToEtcd() {
+func registerToEtcd() {
 	logs.MyInfoLog.Println("开始注册节点信息到Etcd...")
 
 	// 获取连接
@@ -104,70 +108,55 @@ func RegisterToEtcd() {
 	logs.MyErrorLog.CheckFatallnError("创建etcd clientv3失败:", err)
 	defer cli.Close()
 
-	// 暂停5秒
-	time.Sleep(5 * time.Second)
-
 	// 设置约租
-	leaseGrantResp, err := cli.Grant(context.Background(), 10)
+	leaseGrantResp, err := cli.Grant(context.Background(), 1)
 	logs.MyErrorLog.CheckFatallnError("约租设置失败:", err)
 
 	// 注册服务节点
 	ipPort := constants.Configs["serverNode.ip"] + ":" + constants.Configs["serverNode.port"]
-	nodeKey := "servers/" + ipPort
+	nodeKey := "servers||" + ipPort
 	nodeInfo := "IP:" + constants.Configs["serverNode.ip"] + ",PORT:" + constants.Configs["serverNode.port"] + ";setTime:" + time.Now().Format("2006-01-02 15:04:05.9999")
 	_, err = cli.Put(context.Background(), nodeKey, nodeInfo, clientv3.WithLease(leaseGrantResp.ID))
 	logs.MyInfoLog.CheckFatallnError("注册服务节点:"+ipPort+"失败:", err)
-	logs.MyInfoLog.Println("服务节点:" + ipPort + "注册成功")
+	logs.MyInfoLog.Println("注册服务节点:" + nodeKey)
 
-	services := []string{"service_001", "service_002"}
 	// 注册服务接口
-	for _, service := range services {
-		sKey := nodeKey + "/" + service
-		sValue := service + ";setTime:" + time.Now().Format("2006-01-02 15:04:05.9999")
+	for _, service := range service.Services {
+		sKey := nodeKey + "||" + service.URL + "||" + service.MethodType
+		sValue := "service_id:" + service.ServiceId + ";service_name:" + service.ServiceName + ";method:" + service.Method
 
 		_, err = cli.Put(context.TODO(), sKey, sValue, clientv3.WithLease(leaseGrantResp.ID))
-		logs.MyErrorLog.CheckFatallnError("注册服务接口:"+service+"失败:", err)
-		logs.MyInfoLog.Println("服务接口:" + service + "注册成功")
+		logs.MyErrorLog.CheckFatallnError("注册服务接口:"+sKey+"失败:", err)
+		logs.MyInfoLog.Println("注册服务接口:" + sKey)
 	}
 
 	logs.MyInfoLog.Println("注册节点信息到Etcd完成!")
 
-	/*
-		// 删除
-		delResp, err := cli.Delete(context.TODO(), "server", clientv3.WithPrefix())
-		logs.MyErrorLog.CheckPrintlnError("删除数据失败", err)
-		logs.MyInfoLog.Println("删除数据成功", delResp.Deleted)
-	*/
+	registerChan <- true
 
-	count := 1
+	// 保持连接
 	for {
-		count++
-		// 查询
-		getResp, err := cli.Get(context.TODO(), "servers", clientv3.WithPrefix())
-		logs.MyErrorLog.CheckPaniclnError("获取etcd信息失败:", err)
-
-		fmt.Println("count:", getResp.Count, ",header:", getResp.Header)
-		for _, kv1 := range getResp.Kvs {
-			fmt.Printf("key:%s,value:%s,Lease:%d \n", kv1.Key, kv1.Value, kv1.Lease)
-		}
-
-		if count == 2 {
-			lkaResp, err := cli.KeepAliveOnce(context.TODO(), leaseGrantResp.ID)
-			logs.MyErrorLog.CheckPaniclnError("重设keepAlive失败:", err)
-			logs.MyInfoLog.Println("重置成功：", lkaResp.TTL)
-
-		}
-
-		if getResp.Count == 0 {
-			fmt.Println("未查询到数据，退出")
-			break
-		}
-
-		time.Sleep(5 * time.Second)
+		cli.KeepAliveOnce(context.Background(), leaseGrantResp.ID)
+		//		logs.MyDebugLog.Println("连接到etcd正常...")
+		time.Sleep(100 * time.Millisecond)
 	}
-
 }
 
+// 注册监听RPC
+func registerRpc() {
+	logs.MyDebugLog.Println("register rpc now...")
+
+	serviceNode := new(service.ServiceNode)
+	err := rpc.Register(serviceNode)
+	logs.MyErrorLog.CheckFatallnError("", err)
+
+	rpc.HandleHTTP()
+	err = http.ListenAndServe(":"+constants.Configs["serverNode.port"], nil)
+	logs.MyErrorLog.CheckFatallnError("", err)
+	logs.MyDebugLog.Println("register rpc success...")
+}
+
+// 服务中心的监控Etcd代码
 func RegisterToEtcd1() {
 	go func() {
 		logs.MyInfoLog.Println("开始监听Etcd...")
@@ -180,34 +169,14 @@ func RegisterToEtcd1() {
 		logs.MyErrorLog.CheckPaniclnError("监听程序创建etcd clientv3失败:", err)
 		defer cli.Close()
 
-		/*
-			// 查询
-			getResp, err := cli.Get(context.TODO(), "1 servers", clientv3.WithPrefix())
-			logs.MyErrorLog.CheckPaniclnError("1 获取etcd信息失败:", err)
-
-			fmt.Println("1 count:", getResp.Count, ",header:", getResp.Header)
-			for _, kv1 := range getResp.Kvs {
-				fmt.Printf("1 key:%s,value:%s,Lease:%d \n", kv1.Key, kv1.Value, kv1.Lease)
-			}
-		*/
-
-		logs.MyInfoLog.Println("监听grouties开始执行...")
-
-		wChan := cli.Watch(context.TODO(), "servers", clientv3.WithPrefix())
-
-		for wc1 := range wChan {
-			for {
-
+		for {
+			wChan := cli.Watch(context.TODO(), "servers", clientv3.WithPrefix())
+			wc := <-wChan
+			fmt.Printf("监听到结果,canceled:%t,created:%t,Header:%d,isProgressNotify:%t \n", wc.Canceled, wc.Created, wc.Header, wc.IsProgressNotify())
+			for _, e := range wc.Events {
+				fmt.Printf("isCreate:%t,isModify:%t,Type:%s,Key:%s,Value:%s \n", e.IsCreate(), e.IsModify(), e.Type, e.Kv.Key, e.Kv.Value)
 			}
 		}
-
-		wc := <-wChan
-
-		fmt.Printf("监听到结果,canceled:%t,created:%t,Header:%d,isProgressNotify:%t \n", wc.Canceled, wc.Created, wc.Header, wc.IsProgressNotify())
-		for _, e := range wc.Events {
-			fmt.Printf("isCreate:%t,isModify:%t,Type:%s,Key:%s,Value:%s \n", e.IsCreate(), e.IsModify(), e.Type, e.Kv.Key, e.Kv.Value)
-		}
-		logs.MyInfoLog.Println("监听grouties执行结束!")
 
 		logs.MyInfoLog.Println("监听Etcd结束!")
 	}()
