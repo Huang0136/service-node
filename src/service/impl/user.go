@@ -3,7 +3,6 @@ package impl
 import (
 	"bytes"
 	"constants"
-	"fmt"
 	"logs"
 	"strconv"
 	"time"
@@ -19,9 +18,7 @@ type User struct {
 func (si *ServiceImpl) GetUserByUserId() (msg string, err error) {
 	userId := si.InParams["USER_ID"].(string)
 
-	sql := "select * from user where id = ?"
-
-	fmt.Println("MySQL is null:", &constants.MySQLDB, "::::", constants.MySQLDB)
+	sql := "select * from sys_user where id = ?"
 
 	stat, err := constants.MySQLDB.Prepare(sql)
 	logs.MyErrorLog.CheckPrintlnError("prepare:", err)
@@ -35,13 +32,15 @@ func (si *ServiceImpl) GetUserByUserId() (msg string, err error) {
 	for rs.Next() {
 		var id int
 		var name string
-		var time1 time.Time
+		var time1 []uint8
 
 		err = rs.Scan(&id, &name, &time1)
 		logs.MyInfoLog.CheckPrintlnError("scan value:", err)
 
+		t1, _ := time.Parse("2006-01-02 15:04:05.999999999", string(time1)) //2006-01-02 15:04:05.99999999
+
 		u := User{
-			Id: id, Name: name, Time: time1,
+			Id: id, Name: name, Time: t1,
 		}
 
 		list = append(list, u)

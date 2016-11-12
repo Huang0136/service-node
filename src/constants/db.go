@@ -2,50 +2,46 @@ package constants
 
 import (
 	"database/sql"
-	"fmt"
 	"logs"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
 // Postgre database
-var PostgreDB sql.DB
+var PostgreDB *sql.DB
 
 // MySQL database
 var MySQLDB *sql.DB
 
-var MyName string = "Huanggh sb"
-
 // 初始化
 func init() {
 	initMySQLDB()
+	doMySQLExec()
 }
 
 // 初始化数据库
 func initMySQLDB() {
-	MySQLDB, err := sql.Open(Configs["database"], Configs["mysql.url"])
+	mysqlDB, err := sql.Open(Configs["database"], Configs["mysql.url"])
 	logs.MyErrorLog.CheckFatallnError("打开MySQL失败:", err)
 
-	fmt.Println("数据库初始化成功!", MySQLDB)
-
-	err = MySQLDB.Ping()
+	logs.MyInfoLog.Println("数据库初始化成功!", mysqlDB)
+	err = mysqlDB.Ping()
 	if err != nil {
-		fmt.Println("数据库初始化未成功", err)
+		logs.MyInfoLog.Println("数据库初始化未成功", err)
 	}
 
-	fmt.Println("status:", MySQLDB.Stats().OpenConnections)
+	MySQLDB = mysqlDB
+}
 
-	// do something
-	rows, err := MySQLDB.Query("select id,name,time from sys_user where name like ?", "%huanggh%")
-	logs.MyInfoLog.CheckPrintlnError("query:", err)
+// Test: select 1
+func doMySQLExec() {
+	rows, err := MySQLDB.Query("select 1 ")
+	logs.MyInfoLog.CheckPrintlnError("query: select 1", err)
 
 	for rows.Next() {
 		var id int
-		var name string
-		var date string
-		rows.Scan(&id, &name, &date)
+		rows.Scan(&id)
 
-		fmt.Printf("id:%d,name:%s,Time:%s \n", id, name, date)
+		logs.MyInfoLog.Println("[sql:select 1] result:", id)
 	}
-
 }

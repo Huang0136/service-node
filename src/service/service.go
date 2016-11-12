@@ -70,8 +70,6 @@ func init() {
 	go func() {
 		time.Sleep(5 * time.Second)
 
-		fmt.Println("my name:", constants.MyName)
-
 		// 数据库操作
 		si1 := new(impl.ServiceImpl)
 		si1.InParams = make(map[string]interface{})
@@ -81,7 +79,7 @@ func init() {
 		if err != nil {
 			fmt.Println("执行失败:", err)
 		}
-		fmt.Printf("mysql返回结果:%s \n", str)
+		logs.MyInfoLog.Printf("mysql返回结果:%s \n", str)
 	}()
 
 	// 打印服务接口

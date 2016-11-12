@@ -144,7 +144,7 @@ func registerToEtcd() {
 
 // 注册监听RPC
 func registerRpc() {
-	logs.MyDebugLog.Println("register rpc now...")
+	logs.MyInfoLog.Println("register rpc now...")
 
 	serviceNode := new(service.ServiceNode)
 	err := rpc.Register(serviceNode)
