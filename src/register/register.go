@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"logs"
 	"regexp"
+	"strconv"
 	"sync"
 	"time"
 
@@ -113,17 +114,22 @@ func registerToEtcd() {
 	logs.MyErrorLog.CheckFatallnError("约租设置失败:", err)
 
 	// 注册服务节点
-	ipPort := constants.Configs["serverNode.ip"] + ":" + constants.Configs["serverNode.port"]
-	nodeKey := "servers||" + ipPort
-	nodeInfo := "IP:" + constants.Configs["serverNode.ip"] + ",PORT:" + constants.Configs["serverNode.port"] + ";setTime:" + time.Now().Format("2006-01-02 15:04:05.9999")
+	ipPort := constants.Configs["serverNode.ip"] + "," + constants.Configs["serverNode.port"]
+	nodeKey := "servers," + ipPort
+	nodeInfo := "node_name=" + constants.Configs["serverNode.name"] + ",register_time=" + strconv.Itoa(int(time.Now().Unix()))
+
+	// key servers,127.0.0.1,9090
+	// value serverNode.name=xx,registerDate=xxxx,inParams=xxx,outParams=xxx,
 	_, err = cli.Put(context.Background(), nodeKey, nodeInfo, clientv3.WithLease(leaseGrantResp.ID))
 	logs.MyInfoLog.CheckFatallnError("注册服务节点:"+ipPort+"失败:", err)
 	logs.MyInfoLog.Println("注册服务节点:" + nodeKey)
 
 	// 注册服务接口
 	for _, service := range service.Services {
-		sKey := nodeKey + "||" + service.URL + "||" + service.MethodType
-		sValue := "service_id:" + service.ServiceId + ";service_name:" + service.ServiceName + ";method:" + service.Method
+		// key servers,127.0.0.1,9090,get,true,/user/{id}
+		// value serverNode.name=xx,registerDate=xxxx,inParams=xxx,outParams=xxx,
+		sKey := nodeKey + "," + service.MethodType + "," + strconv.FormatBool(service.Regexp) + "," + service.URL
+		sValue := "service_id=" + service.ServiceId + ",service_name=" + service.ServiceName + ",method=" + service.Method + ",remark=" + service.Remark + ",in_params=" + ",out_params="
 
 		_, err = cli.Put(context.TODO(), sKey, sValue, clientv3.WithLease(leaseGrantResp.ID))
 		logs.MyErrorLog.CheckFatallnError("注册服务接口:"+sKey+"失败:", err)

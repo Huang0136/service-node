@@ -34,6 +34,7 @@ type Service struct {
 	ServiceId   string     `json:"service_id"`
 	ServiceName string     `json:"service_name"`
 	URL         string     `json:"url"`
+	Regexp      bool       `json:"regexp"`
 	MethodType  string     `json:"method_type"`
 	Method      string     `json:"method"`
 	Remark      string     `json:"remark"`

@@ -4,6 +4,7 @@
         "service_name": "获取用户信息",
         "url": "/user/{id}",
         "method_type": "GET",
+		"regexp":true,
         "method": "GetUser",
         "remark": "根据USER_ID获取用户信息",
         "in_params": [
@@ -36,6 +37,7 @@
         "service_name": "新增用户",
         "url": "/user/{id}",
         "method_type": "POST",
+		"regexp":false,
         "method": "AddUser",
         "remark": "新增用户",
         "in_params": [
