@@ -5,7 +5,7 @@
         "url": "/user/{id}",
         "method_type": "GET",
 		"regexp":true,
-        "method": "GetUser",
+        "method": "GetUserByUserId",
         "remark": "根据USER_ID获取用户信息",
         "in_params": [
             {

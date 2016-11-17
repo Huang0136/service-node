@@ -3,6 +3,7 @@ package impl
 import (
 	"bytes"
 	"constants"
+	"fmt"
 	"logs"
 	"strconv"
 	"time"
@@ -17,6 +18,7 @@ type User struct {
 // 根据用户Id获取用户
 func (si *ServiceImpl) GetUserByUserId() (msg string, err error) {
 	userId := si.InParams["USER_ID"].(string)
+	fmt.Println("业务方法接收到参数:", si.InParams)
 
 	sql := "select * from sys_user where id = ?"
 

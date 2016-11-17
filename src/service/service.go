@@ -12,7 +12,6 @@ import (
 	"os"
 	"reflect"
 	"service/impl"
-	"time"
 	"validation"
 )
 
@@ -68,21 +67,6 @@ func init() {
 	// 读取服务接口配置文件
 	readServiceConfig()
 
-	go func() {
-		time.Sleep(5 * time.Second)
-
-		// 数据库操作
-		si1 := new(impl.ServiceImpl)
-		si1.InParams = make(map[string]interface{})
-		si1.InParams["USER_ID"] = "2"
-
-		str, err := si1.GetUserByUserId()
-		if err != nil {
-			fmt.Println("执行失败:", err)
-		}
-		logs.MyInfoLog.Printf("mysql返回结果:%s \n", str)
-	}()
-
 	// 打印服务接口
 	//	PrintlnServices()
 }
@@ -106,18 +90,12 @@ func ServiceToStr(s Service) string {
 
 // 统一的rpc调用处理方法
 func (serverNode *ServiceNode) RpcCallHandler(req Req, resp *Resp) error {
-	// 方法名称
-	methodName, _ := req.Params["METHOD_NAME"].(string)
+	methodName, _ := req.Params["METHOD_NAME"].(string) // 方法名称
 
-	fmt.Println("MethodName:", methodName)
-
+	// 业务服务实现
 	si := new(impl.ServiceImpl)
 	si.InParams = req.Params
-
-	funcTemp := reflect.ValueOf(si).MethodByName(methodName)
-
-	// 封装入参
-	//	var inValues []reflect.Value
+	fmt.Println("节点请求参数:", si.InParams)
 
 	// 接口入参校验
 	err := validation.CheckInterfaceInParams(methodName)
@@ -125,11 +103,18 @@ func (serverNode *ServiceNode) RpcCallHandler(req Req, resp *Resp) error {
 		return err
 	}
 
-	// 反射调用
-	rfValues := funcTemp.Call(nil)
+	// 封装入参
+	var inReflectValues []reflect.Value = make([]reflect.Value, 0)
 
-	// 封装出参
-	resp.Params["result"] = string(rfValues[0].Bytes())
+	// 反射调用
+	funcTemp := reflect.ValueOf(si).MethodByName(methodName)
+	rfValues := funcTemp.Call(inReflectValues)
+
+	fmt.Println("业务执行结果:", rfValues)
+
+	// 返回结果
+	resp.Params = make(map[string]interface{})
+	resp.Params["result"] = rfValues[0].String()
 	return nil
 }
 
