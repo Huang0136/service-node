@@ -6,12 +6,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"logs"
 	"net/http"
 	"net/rpc"
 	"os"
 	"reflect"
 	"service/impl"
+	"time"
 	"validation"
 )
 
@@ -90,6 +92,7 @@ func ServiceToStr(s Service) string {
 
 // 统一的rpc调用处理方法
 func (serverNode *ServiceNode) RpcCallHandler(req Req, resp *Resp) error {
+	tNodeBegin := time.Now()                            // 开始时间
 	methodName, _ := req.Params["METHOD_NAME"].(string) // 方法名称
 
 	// 业务服务实现
@@ -104,17 +107,28 @@ func (serverNode *ServiceNode) RpcCallHandler(req Req, resp *Resp) error {
 	}
 
 	// 封装入参
+	tBusineBegin := time.Now()
 	var inReflectValues []reflect.Value = make([]reflect.Value, 0)
 
 	// 反射调用
 	funcTemp := reflect.ValueOf(si).MethodByName(methodName)
 	rfValues := funcTemp.Call(inReflectValues)
+	tBusineEnd := time.Now()
 
 	fmt.Println("业务执行结果:", rfValues)
 
 	// 返回结果
 	resp.Params = make(map[string]interface{})
 	resp.Params["result"] = rfValues[0].String()
+	tNodeEnd := time.Now()
+
+	resp.Params["SERVER_NODE"] = constants.Configs["serverNode.ip"] + ":" + constants.Configs["serverNode.port"]
+	resp.Params["NODE_BEGIN_TIME"] = tNodeBegin.UnixNano()
+	resp.Params["NODE_END_TIME"] = tNodeEnd.UnixNano()
+	resp.Params["BUSINE_BEGIN_TIME"] = tBusineBegin.UnixNano()
+	resp.Params["BUSINE_END_TIME"] = tBusineEnd.UnixNano()
+
+	log.Printf("SQL执行时间:%f,节点执行时间:%f\n", tBusineEnd.Sub(tBusineBegin).Seconds(), tNodeEnd.Sub(tNodeBegin).Seconds())
 	return nil
 }
 
