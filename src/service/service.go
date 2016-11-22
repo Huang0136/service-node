@@ -90,15 +90,15 @@ func ServiceToStr(s Service) string {
 	return b.String()
 }
 
-// 统一的rpc调用处理方法
+// 统一的rpc处理方法
 func (serverNode *ServiceNode) RpcCallHandler(req Req, resp *Resp) error {
-	tNodeBegin := time.Now()                            // 开始时间
+	tNodeBegin := time.Now()                            // 开始处理时间
 	methodName, _ := req.Params["METHOD_NAME"].(string) // 方法名称
 
 	// 业务服务实现
 	si := new(impl.ServiceImpl)
 	si.InParams = req.Params
-	fmt.Println("节点请求参数:", si.InParams)
+	fmt.Println("请求参数:", si.InParams)
 
 	// 接口入参校验
 	err := validation.CheckInterfaceInParams(methodName)
@@ -107,13 +107,13 @@ func (serverNode *ServiceNode) RpcCallHandler(req Req, resp *Resp) error {
 	}
 
 	// 封装入参
-	tBusineBegin := time.Now()
+	tBusineBegin := time.Now() //反射调用开始
 	var inReflectValues []reflect.Value = make([]reflect.Value, 0)
 
 	// 反射调用
 	funcTemp := reflect.ValueOf(si).MethodByName(methodName)
 	rfValues := funcTemp.Call(inReflectValues)
-	tBusineEnd := time.Now()
+	tBusineEnd := time.Now() // 反射调用结束
 
 	fmt.Println("业务执行结果:", rfValues)
 
@@ -134,7 +134,7 @@ func (serverNode *ServiceNode) RpcCallHandler(req Req, resp *Resp) error {
 
 // 注册rpc
 func RegisterRpc() {
-	logs.MyDebugLog.Println("register rpc now...")
+	logs.MyDebugLog.Println("register rpc...")
 
 	serviceNode := new(ServiceNode)
 	err := rpc.Register(serviceNode)
@@ -143,7 +143,6 @@ func RegisterRpc() {
 	rpc.HandleHTTP()
 	err = http.ListenAndServe(":"+constants.Configs["serverNode.port"], nil)
 	logs.MyErrorLog.CheckFatallnError("", err)
-	logs.MyDebugLog.Println("register rpc success...")
 }
 
 // 读取服务接口配置文件

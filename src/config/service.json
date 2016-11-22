@@ -1,10 +1,57 @@
 [
     {
-        "service_id": "s1",
+        "service_id": "1",
+        "service_name": "用户登录",
+        "url": "/user/{user_name}/password/{password}",
+        "method_type": "GET",
+        "regexp": true,
+        "method": "Login",
+        "remark": "用户登录",
+        "in_params": [
+            {
+                "param_code": "USER_NAME",
+                "param_name": "登录名",
+                "param_type": "string",
+                "require": true,
+                "length": 32,
+                "remark": ""
+            },
+            {
+                "param_code": "PASSWORD",
+                "param_name": "密码",
+                "param_type": "string",
+                "require": true,
+                "length": 50,
+                "remark": ""
+            }
+        ],
+        "out_params": [
+            {
+                "param_code": "USER_ID",
+                "param_name": "客户代码",
+                "param_type": "int",
+                "remark": "测试1"
+            },
+            {
+                "param_code": "USER_NAME",
+                "param_name": "用户名称",
+                "param_type": "string",
+                "remark": "测试2"
+            },
+            {
+                "param_code": "TOKEN",
+                "param_name": "令牌",
+                "param_type": "string",
+                "remark": ""
+            }
+        ]
+    },
+    {
+        "service_id": "2",
         "service_name": "获取用户信息",
         "url": "/user/{id}",
         "method_type": "GET",
-		"regexp":true,
+        "regexp": true,
         "method": "GetUserByUserId",
         "remark": "根据USER_ID获取用户信息",
         "in_params": [
@@ -33,11 +80,11 @@
         ]
     },
     {
-        "service_id": "user2",
+        "service_id": "3",
         "service_name": "新增用户",
         "url": "/user/{id}",
         "method_type": "POST",
-		"regexp":false,
+        "regexp": false,
         "method": "AddUser",
         "remark": "新增用户",
         "in_params": [

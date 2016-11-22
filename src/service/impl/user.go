@@ -3,16 +3,75 @@ package impl
 import (
 	"bytes"
 	"constants"
+	"crypto/sha512"
 	"fmt"
+	"io"
 	"logs"
 	"strconv"
 	"time"
+	"utils"
 )
 
 type User struct {
 	Id   int
 	Name string
 	Time time.Time
+}
+
+// 登录
+func (si *ServiceImpl) Login() (msg string, err error) {
+	userName := si.InParams["USER_NAME"].(string) // 输入的登录名
+	password := si.InParams["PASSWORD"].(string)  // 输入的密码
+
+	sql := "select t.id,t.user_name,t.password,t.time,t.status from sys_user t where t.user_name = ? "
+	stat, err := constants.MySQLDB.Prepare(sql)
+	if err != nil {
+		logs.MyInfoLog.Panicln("", err)
+		return
+	}
+
+	row := stat.QueryRow(userName)
+
+	var id int
+	var dbPassword string
+	var un string
+	var ts []uint8
+	var status string
+	err = row.Scan(&id, &un, &dbPassword, &ts, &status)
+	if err != nil {
+		logs.MyInfoLog.Panicln("", err)
+		return
+	}
+
+	fmt.Printf("结果,id:%d,un:%s,pw:%s,time:%s,status:%s\n", id, un, dbPassword, ts, status)
+
+	if id == 0 && dbPassword == "" {
+		msg = "用户名/密码不正确"
+		return
+	}
+
+	// 密码加密存储，sha512(sha512(password),salt)
+	shaHash1 := sha512.New()
+	io.WriteString(shaHash1, password)
+
+	str1 := fmt.Sprintf("%x", shaHash1.Sum(nil)) // 第一次加密
+
+	shaHash2 := sha512.New()
+	io.WriteString(shaHash2, str1)
+	io.WriteString(shaHash2, strconv.Itoa(id))
+
+	str2 := fmt.Sprintf("%x", shaHash2.Sum(nil)) // 第二次加密
+
+	fmt.Printf("用户登录,username:%s,password:%s,sha512加密后:%s \n", userName, password, str2)
+
+	if str2 == dbPassword {
+		token := utils.CreateToken()
+		msg = "{\"message\":\"登录成功\",\"TOKEN\":\"" + token + "\"}"
+		return
+	} else {
+		msg = "用户名/密码不正确"
+		return
+	}
 }
 
 // 根据用户Id获取用户
@@ -54,7 +113,7 @@ func (si *ServiceImpl) GetUserByUserId() (msg string, err error) {
 		b.WriteString("{")
 		b.WriteString("\"id\":\"")
 		b.WriteString(strconv.Itoa(v.Id))
-		b.WriteString("\",\"name\":\"")
+		b.WriteString("\",\"user_name\":\"")
 		b.WriteString(v.Name)
 		b.WriteString("\",\"time\":\"")
 		b.WriteString(v.Time.Format("2006-01-02 15:04:05.9999"))
@@ -74,7 +133,7 @@ func (si *ServiceImpl) GetUserByUserId() (msg string, err error) {
 
 // 添加User
 func (si *ServiceImpl) Add(user User) string {
-	sql := "insert into user(id,name,time)values(?,?,?)"
+	sql := "insert into user(id,user_name,password,time,status)values(?,?,?,?,?)"
 	stat, err := constants.MySQLDB.Prepare(sql)
 	logs.MyInfoLog.CheckPrintlnError("", err)
 
