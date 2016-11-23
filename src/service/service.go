@@ -38,6 +38,7 @@ type Service struct {
 	Regexp      bool       `json:"regexp"`
 	MethodType  string     `json:"method_type"`
 	Method      string     `json:"method"`
+	ContentType string     `json:"content_type"`
 	Remark      string     `json:"remark"`
 	InParams    []InParam  `json:"in_params"`
 	OutParams   []OutParam `json:"out_params"`
@@ -101,7 +102,7 @@ func (serverNode *ServiceNode) RpcCallHandler(req Req, resp *Resp) error {
 	fmt.Println("请求参数:", si.InParams)
 
 	// 接口入参校验
-	err := validation.CheckInterfaceInParams(methodName)
+	err := validation.CheckInterfaceInParams(methodName, si.InParams)
 	if err != nil {
 		return err
 	}
@@ -116,10 +117,82 @@ func (serverNode *ServiceNode) RpcCallHandler(req Req, resp *Resp) error {
 	tBusineEnd := time.Now() // 反射调用结束
 
 	fmt.Println("业务执行结果:", rfValues)
+	fmt.Println("返回参数个数:", len(rfValues))
+	for i, rfv := range rfValues {
+		fmt.Printf("第%d个参数,类型:%s,值:%v\n", i, rfv.Kind().String(), rfv)
+		//		kt, _ := strconv.Atoi(rfv.Kind().String())
+		//		kindType := uint(kt)
+		switch rfv.Kind() {
+		case reflect.Interface:
+			fmt.Printf("返回值类型:interface,%v\n", rfv)
+			break
+		case reflect.Struct:
+			fmt.Printf("返回值类型:Struct,%v\n", rfv)
+			break
+		case reflect.Map:
+			fmt.Printf("返回值类型:Map,%v\n", rfv)
+			break
+		case reflect.String:
+			fmt.Printf("返回值类型:String,%v\n", rfv)
+			break
+		case reflect.Slice:
+			fmt.Printf("返回值类型:Slice,%v\n", rfv)
+			break
+		case reflect.Array:
+			fmt.Printf("返回值类型:Array,%v\n", rfv)
+			break
+		case reflect.Int:
+			fmt.Printf("返回值类型:Int,%v\n", rfv)
+			break
+		default:
+			fmt.Printf("未知的返回值类型:%s\n", rfv.Kind())
+		}
+	}
+
+	/*
+		Invalid Kind = iota
+		Bool
+		Int
+		Int8
+		Int16
+		Int32
+		Int64
+		Uint
+		Uint8
+		Uint16
+		Uint32
+		Uint64
+		Uintptr
+		Float32
+		Float64
+		Complex64
+		Complex128
+		Array
+		Chan
+		Func
+		Interface
+		Map
+		Ptr
+		Slice
+		String
+		Struct
+		UnsafePointer
+	*/
 
 	// 返回结果
 	resp.Params = make(map[string]interface{})
-	resp.Params["result"] = rfValues[0].String()
+	//resp.Params["result"] = rfValues[0] //.String() []User、User、string、int、interface、map[string]interface
+
+	rsType := rfValues[0].Kind()
+	if rsType == reflect.String {
+		resp.Params["result"] = rfValues[0].String()
+	} else if rsType == reflect.Slice {
+		resp.Params["result"] = rfValues[0].Bytes()
+	} else if rsType == reflect.Struct {
+
+		resp.Params["result"] = rfValues[0].String()
+	}
+
 	tNodeEnd := time.Now()
 
 	resp.Params["SERVER_NODE"] = constants.Configs["serverNode.ip"] + ":" + constants.Configs["serverNode.port"]
@@ -128,6 +201,7 @@ func (serverNode *ServiceNode) RpcCallHandler(req Req, resp *Resp) error {
 	resp.Params["BUSINE_BEGIN_TIME"] = tBusineBegin.UnixNano()
 	resp.Params["BUSINE_END_TIME"] = tBusineEnd.UnixNano()
 
+	// 业务执行时间
 	log.Printf("SQL执行时间:%f,节点执行时间:%f\n", tBusineEnd.Sub(tBusineBegin).Seconds(), tNodeEnd.Sub(tNodeBegin).Seconds())
 	return nil
 }

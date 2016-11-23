@@ -1,7 +1,7 @@
 package impl
 
 import (
-	"bytes"
+	"beans"
 	"constants"
 	"crypto/sha512"
 	"fmt"
@@ -11,12 +11,6 @@ import (
 	"time"
 	"utils"
 )
-
-type User struct {
-	Id   int
-	Name string
-	Time time.Time
-}
 
 // 登录
 func (si *ServiceImpl) Login() (msg string, err error) {
@@ -75,11 +69,12 @@ func (si *ServiceImpl) Login() (msg string, err error) {
 }
 
 // 根据用户Id获取用户
-func (si *ServiceImpl) GetUserByUserId() (msg string, err error) {
+func (si *ServiceImpl) GetUserByUserId() (u beans.User, other map[string]interface{}, err error) {
 	userId := si.InParams["USER_ID"].(string)
 	fmt.Println("业务方法接收到参数:", si.InParams)
 
-	sql := "select * from sys_user where id = ?"
+	t1 := time.Now().UnixNano()
+	sql := "select id,user_name,time from sys_user where id = ?"
 
 	stat, err := constants.MySQLDB.Prepare(sql)
 	logs.MyErrorLog.CheckPrintlnError("prepare:", err)
@@ -87,9 +82,9 @@ func (si *ServiceImpl) GetUserByUserId() (msg string, err error) {
 	rs, err := stat.Query(userId)
 	logs.MyErrorLog.CheckPrintlnError("query:", err)
 
-	var b bytes.Buffer
+	//	var b bytes.Buffer
 
-	var list []User
+	var list []beans.User
 	for rs.Next() {
 		var id int
 		var name string
@@ -100,39 +95,46 @@ func (si *ServiceImpl) GetUserByUserId() (msg string, err error) {
 
 		t1, _ := time.Parse("2006-01-02 15:04:05.999999999", string(time1)) //2006-01-02 15:04:05.99999999
 
-		u := User{
+		u := beans.User{
 			Id: id, Name: name, Time: t1,
 		}
 
 		list = append(list, u)
 	}
 
-	b.WriteString("[")
-	ll := len(list)
-	for i, v := range list {
-		b.WriteString("{")
-		b.WriteString("\"id\":\"")
-		b.WriteString(strconv.Itoa(v.Id))
-		b.WriteString("\",\"user_name\":\"")
-		b.WriteString(v.Name)
-		b.WriteString("\",\"time\":\"")
-		b.WriteString(v.Time.Format("2006-01-02 15:04:05.9999"))
-		b.WriteString("\"")
-		if ll == i+1 {
-			b.WriteString("}")
-		} else {
-			b.WriteString("},")
+	/*
+		b.WriteString("[")
+		ll := len(list)
+		for i, v := range list {
+			b.WriteString("{")
+			b.WriteString("\"id\":\"")
+			b.WriteString(strconv.Itoa(v.Id))
+			b.WriteString("\",\"user_name\":\"")
+			b.WriteString(v.Name)
+			b.WriteString("\",\"time\":\"")
+			b.WriteString(v.Time.Format("2006-01-02 15:04:05.9999"))
+			b.WriteString("\"")
+			if ll == i+1 {
+				b.WriteString("}")
+			} else {
+				b.WriteString("},")
+			}
+
 		}
+		b.WriteString("]")
+	*/
+	t2 := time.Now().UnixNano()
 
-	}
-	b.WriteString("]")
-
-	return b.String(), nil
+	u = list[0]
+	other = make(map[string]interface{})
+	other["SQL_EXCU_TIME_BEGIN"] = t1
+	other["SQL_EXCU_TIME_END"] = t2
+	return
 
 }
 
 // 添加User
-func (si *ServiceImpl) Add(user User) string {
+func (si *ServiceImpl) Add(user beans.User) string {
 	sql := "insert into user(id,user_name,password,time,status)values(?,?,?,?,?)"
 	stat, err := constants.MySQLDB.Prepare(sql)
 	logs.MyInfoLog.CheckPrintlnError("", err)

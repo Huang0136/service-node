@@ -7,6 +7,7 @@
         "regexp": true,
         "method": "Login",
         "remark": "用户登录",
+        "content_type": "json",
         "in_params": [
             {
                 "param_code": "USER_NAME",
@@ -53,6 +54,7 @@
         "method_type": "GET",
         "regexp": true,
         "method": "GetUserByUserId",
+        "content_type": "json",
         "remark": "根据USER_ID获取用户信息",
         "in_params": [
             {
@@ -86,6 +88,7 @@
         "method_type": "POST",
         "regexp": false,
         "method": "AddUser",
+        "content_type": "json",
         "remark": "新增用户",
         "in_params": [
             {
@@ -117,6 +120,34 @@
                 "param_name": "用户名称",
                 "param_type": "string",
                 "remark": ""
+            }
+        ]
+    },
+    {
+        "service_id": "4",
+        "service_name": "文件下载",
+        "url": "/file/{fileName}",
+        "method_type": "GET",
+        "regexp": true,
+        "method": "DownloadFileTest",
+        "content_type": "file",
+        "remark": "文件下载测试",
+        "in_params": [
+            {
+                "param_code": "FILE_NAME",
+                "param_name": "文件名",
+                "param_type": "string",
+                "require": true,
+                "length": 32,
+                "remark": ""
+            }
+        ],
+        "out_params": [
+            {
+                "param_code": "FILE_CONTENT",
+                "param_name": "文件",
+                "param_type": "file",
+                "remark": "lll"
             }
         ]
     }

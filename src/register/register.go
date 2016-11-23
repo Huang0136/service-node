@@ -129,7 +129,7 @@ func registerToEtcd() {
 		// key servers,127.0.0.1,9090,get,true,/user/{id}
 		// value serverNode.name=xx,registerDate=xxxx,inParams=xxx,outParams=xxx,
 		sKey := nodeKey + "," + service.MethodType + "," + strconv.FormatBool(service.Regexp) + "," + service.URL
-		sValue := "service_id=" + service.ServiceId + ",service_name=" + service.ServiceName + ",method=" + service.Method + ",remark=" + service.Remark + ",in_params=" + ",out_params="
+		sValue := "service_id=" + service.ServiceId + ",service_name=" + service.ServiceName + ",method=" + service.Method + ",content_type=" + service.ContentType + ",remark=" + service.Remark + ",in_params=" + ",out_params="
 
 		_, err = cli.Put(context.TODO(), sKey, sValue, clientv3.WithLease(leaseGrantResp.ID))
 		logs.MyErrorLog.CheckFatallnError("注册服务接口:"+sKey+"失败:", err)
