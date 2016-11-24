@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"constants"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -13,6 +14,7 @@ import (
 	"os"
 	"reflect"
 	"service/impl"
+	"strings"
 	"time"
 	"validation"
 )
@@ -65,145 +67,123 @@ type OutParam struct {
 // 服务接口列表
 var Services []Service = make([]Service, 0)
 
-//
 func init() {
 	// 读取服务接口配置文件
 	readServiceConfig()
 
-	// 打印服务接口
-	//	PrintlnServices()
-}
-
-// 打印服务接口列表
-func PrintlnServices() {
-	for _, s := range Services {
-		fmt.Println(ServiceToStr(s))
-	}
-}
-
-// 将服务转换成字符串
-func ServiceToStr(s Service) string {
-	b := bytes.Buffer{}
-
-	b.WriteString("接口:" + s.ServiceName + ",")
-	b.WriteString("方法:" + s.Method)
-
-	return b.String()
 }
 
 // 统一的rpc处理方法
 func (serverNode *ServiceNode) RpcCallHandler(req Req, resp *Resp) error {
-	tNodeBegin := time.Now()                            // 开始处理时间
+	tNode1 := time.Now()                                // 节点处理开始时间
 	methodName, _ := req.Params["METHOD_NAME"].(string) // 方法名称
 
 	// 业务服务实现
 	si := new(impl.ServiceImpl)
 	si.InParams = req.Params
-	fmt.Println("请求参数:", si.InParams)
+
+	// 服务配置
+	service := findService(methodName)
 
 	// 接口入参校验
+	tParamCheck1 := time.Now()
 	err := validation.CheckInterfaceInParams(methodName, si.InParams)
 	if err != nil {
 		return err
 	}
+	tParamCheck2 := time.Now()
 
 	// 封装入参
-	tBusineBegin := time.Now() //反射调用开始
+	tReflectCall1 := time.Now() //反射调用开始时间
 	var inReflectValues []reflect.Value = make([]reflect.Value, 0)
+
+	// TODO 封装给方法的入参
 
 	// 反射调用
 	funcTemp := reflect.ValueOf(si).MethodByName(methodName)
 	rfValues := funcTemp.Call(inReflectValues)
-	tBusineEnd := time.Now() // 反射调用结束
+	tReflectCall2 := time.Now() // 反射调用结束时间
 
 	fmt.Println("业务执行结果:", rfValues)
-	fmt.Println("返回参数个数:", len(rfValues))
-	for i, rfv := range rfValues {
-		fmt.Printf("第%d个参数,类型:%s,值:%v\n", i, rfv.Kind().String(), rfv)
-		//		kt, _ := strconv.Atoi(rfv.Kind().String())
-		//		kindType := uint(kt)
-		switch rfv.Kind() {
-		case reflect.Interface:
-			fmt.Printf("返回值类型:interface,%v\n", rfv)
+
+	// 返回结果（给服务中心）
+	resp.Params = make(map[string]interface{})
+
+	// 结果:业务执行是否有错
+	rsError := rfValues[2]
+	if rsError.Interface() != nil {
+		errTemp := rsError.Interface().(error)
+		err1 := errors.New("业务执行失败," + errTemp.Error())
+		log.Panicln(err1)
+		return err1
+	}
+
+	// 结果:业务返回
+	rsReturn := rfValues[0]
+
+	switch service.ContentType {
+	case "json":
+		bJson, err := json.Marshal(rsReturn.Interface())
+		if err != nil {
+			err1 := errors.New("转换JSON失败," + err.Error())
+			log.Panicln(err1)
+			return err1
+		}
+
+		resp.Params["RESULT"] = string(bJson)
+		break
+	case "file":
+		resp.Params["RESULT"] = rsReturn.Bytes()
+		break
+	case "static":
+		resp.Params["RESULT"] = rsReturn.Bytes()
+		break
+	default:
+		log.Panicln("未知的返回类型")
+	}
+
+	// 结果:用于性能调优
+	rsDefault := rfValues[1]
+
+	var str1 bytes.Buffer
+	str1.WriteString("业务执行耗时,")
+	for _, m := range rsDefault.MapKeys() {
+		k1 := m.String()
+		v1 := rsDefault.MapIndex(m).Interface()
+		strV1 := fmt.Sprint(v1.(float64))
+
+		str1.WriteString(k1)
+		str1.WriteString(":")
+		str1.WriteString(strV1)
+		str1.WriteString(",")
+
+		resp.Params["HANDLER_"+k1] = strV1 // 业务处理各耗时情况
+	}
+
+	str2 := strings.TrimRight(str1.String(), ",")
+	fmt.Println(str2)
+
+	resp.Params["HANDLER_SERVER_NODE"] = constants.Configs["serverNode.ip"] + ":" + constants.Configs["serverNode.port"]
+	resp.Params["TIME_SERVICE_PARAMS_CHECK"] = fmt.Sprint(tParamCheck2.Sub(tParamCheck1).Seconds()) // 入参校验耗时
+	resp.Params["TIME_REFLECT_CALL"] = fmt.Sprint(tReflectCall2.Sub(tReflectCall1).Seconds())       // 反射调用耗时
+
+	tNode2 := time.Now()                                                      // 节点处理结束时间
+	resp.Params["TIME_NODE_TOTAL"] = fmt.Sprint(tNode2.Sub(tNode1).Seconds()) // 节点处理总耗时
+
+	// 耗时
+	fmt.Printf("节点处理总耗时:%f,反射调用耗时:%f,入参校验耗时:%f\n", tNode2.Sub(tNode1).Seconds(), tReflectCall2.Sub(tReflectCall1).Seconds(), tParamCheck2.Sub(tParamCheck1).Seconds())
+	return nil
+}
+
+// 根据method查找接口配置信息
+func findService(methodName string) (s Service) {
+	for _, sTemp := range Services {
+		if methodName == sTemp.Method {
+			s = sTemp
 			break
-		case reflect.Struct:
-			fmt.Printf("返回值类型:Struct,%v\n", rfv)
-			break
-		case reflect.Map:
-			fmt.Printf("返回值类型:Map,%v\n", rfv)
-			break
-		case reflect.String:
-			fmt.Printf("返回值类型:String,%v\n", rfv)
-			break
-		case reflect.Slice:
-			fmt.Printf("返回值类型:Slice,%v\n", rfv)
-			break
-		case reflect.Array:
-			fmt.Printf("返回值类型:Array,%v\n", rfv)
-			break
-		case reflect.Int:
-			fmt.Printf("返回值类型:Int,%v\n", rfv)
-			break
-		default:
-			fmt.Printf("未知的返回值类型:%s\n", rfv.Kind())
 		}
 	}
-
-	/*
-		Invalid Kind = iota
-		Bool
-		Int
-		Int8
-		Int16
-		Int32
-		Int64
-		Uint
-		Uint8
-		Uint16
-		Uint32
-		Uint64
-		Uintptr
-		Float32
-		Float64
-		Complex64
-		Complex128
-		Array
-		Chan
-		Func
-		Interface
-		Map
-		Ptr
-		Slice
-		String
-		Struct
-		UnsafePointer
-	*/
-
-	// 返回结果
-	resp.Params = make(map[string]interface{})
-	//resp.Params["result"] = rfValues[0] //.String() []User、User、string、int、interface、map[string]interface
-
-	rsType := rfValues[0].Kind()
-	if rsType == reflect.String {
-		resp.Params["result"] = rfValues[0].String()
-	} else if rsType == reflect.Slice {
-		resp.Params["result"] = rfValues[0].Bytes()
-	} else if rsType == reflect.Struct {
-
-		resp.Params["result"] = rfValues[0].String()
-	}
-
-	tNodeEnd := time.Now()
-
-	resp.Params["SERVER_NODE"] = constants.Configs["serverNode.ip"] + ":" + constants.Configs["serverNode.port"]
-	resp.Params["NODE_BEGIN_TIME"] = tNodeBegin.UnixNano()
-	resp.Params["NODE_END_TIME"] = tNodeEnd.UnixNano()
-	resp.Params["BUSINE_BEGIN_TIME"] = tBusineBegin.UnixNano()
-	resp.Params["BUSINE_END_TIME"] = tBusineEnd.UnixNano()
-
-	// 业务执行时间
-	log.Printf("SQL执行时间:%f,节点执行时间:%f\n", tBusineEnd.Sub(tBusineBegin).Seconds(), tNodeEnd.Sub(tNodeBegin).Seconds())
-	return nil
+	return
 }
 
 // 注册rpc

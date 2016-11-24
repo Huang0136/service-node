@@ -8,18 +8,22 @@ import (
 )
 
 func (si *ServiceImpl) DownloadFileTest() (fByte []byte, other map[string]interface{}, err error) {
+	// 入参
 	fileName := si.InParams["file_name"].(string)
-	t1 := time.Now().UnixNano()
+
+	// 读取文件
+	tReadFile1 := time.Now()
 	fByte, err = ioutil.ReadFile("./config/" + fileName)
 	if err != nil {
 		log.Panicln("读取文件失败", err)
 		return
 	}
-	t2 := time.Now().UnixNano()
+	tReadFile2 := time.Now()
 
+	// 返回结果(性能分析)
 	other = make(map[string]interface{})
-	other["READ_FILE_BEGIN_TIME"] = t1
-	other["READ_FILE_END_TIME"] = t2
+	other["TIME_READ_FILE"] = tReadFile2.Sub(tReadFile1).Seconds()
+
 	fmt.Println("读取文件成功")
 	return
 }

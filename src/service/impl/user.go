@@ -3,20 +3,21 @@ package impl
 import (
 	"beans"
 	"constants"
-	"crypto/sha512"
 	"fmt"
-	"io"
 	"logs"
 	"strconv"
 	"time"
 	"utils"
 )
 
-// 登录
-func (si *ServiceImpl) Login() (msg string, err error) {
+// 用户登录
+//
+func (si *ServiceImpl) Login() (result map[string]interface{}, other map[string]interface{}, err error) {
+	// 入参
 	userName := si.InParams["USER_NAME"].(string) // 输入的登录名
 	password := si.InParams["PASSWORD"].(string)  // 输入的密码
 
+	tQuery1 := time.Now()
 	sql := "select t.id,t.user_name,t.password,t.time,t.status from sys_user t where t.user_name = ? "
 	stat, err := constants.MySQLDB.Prepare(sql)
 	if err != nil {
@@ -36,34 +37,34 @@ func (si *ServiceImpl) Login() (msg string, err error) {
 		logs.MyInfoLog.Panicln("", err)
 		return
 	}
+	tQuery2 := time.Now()
 
 	fmt.Printf("结果,id:%d,un:%s,pw:%s,time:%s,status:%s\n", id, un, dbPassword, ts, status)
 
-	if id == 0 && dbPassword == "" {
-		msg = "用户名/密码不正确"
+	if id == 0 && un == "" {
+		result["message"] = "用户名/密码不正确"
 		return
 	}
 
-	// 密码加密存储，sha512(sha512(password),salt)
-	shaHash1 := sha512.New()
-	io.WriteString(shaHash1, password)
-
-	str1 := fmt.Sprintf("%x", shaHash1.Sum(nil)) // 第一次加密
-
-	shaHash2 := sha512.New()
-	io.WriteString(shaHash2, str1)
-	io.WriteString(shaHash2, strconv.Itoa(id))
-
-	str2 := fmt.Sprintf("%x", shaHash2.Sum(nil)) // 第二次加密
-
+	// 密码加密
+	tPwEncrypt1 := time.Now()
+	str2 := utils.EncryptPassword(password, strconv.Itoa(id))
 	fmt.Printf("用户登录,username:%s,password:%s,sha512加密后:%s \n", userName, password, str2)
+	tPwEncrypt2 := time.Now()
 
+	// 返回结果(性能分析)
+	other = make(map[string]interface{})
+	other["TIME_SQL_SELECT_USER"] = tQuery2.Sub(tQuery1).Seconds()
+	other["TIME_ENCRYPT_PASSWORD"] = tPwEncrypt2.Sub(tPwEncrypt1).Seconds()
+
+	// 返回结果
+	result = make(map[string]interface{})
 	if str2 == dbPassword {
-		token := utils.CreateToken()
-		msg = "{\"message\":\"登录成功\",\"TOKEN\":\"" + token + "\"}"
+		result["message"] = "登录成功"
+		result["token"] = utils.CreateToken()
 		return
 	} else {
-		msg = "用户名/密码不正确"
+		result["message"] = "用户名/密码不正确"
 		return
 	}
 }
@@ -71,9 +72,8 @@ func (si *ServiceImpl) Login() (msg string, err error) {
 // 根据用户Id获取用户
 func (si *ServiceImpl) GetUserByUserId() (u beans.User, other map[string]interface{}, err error) {
 	userId := si.InParams["USER_ID"].(string)
-	fmt.Println("业务方法接收到参数:", si.InParams)
 
-	t1 := time.Now().UnixNano()
+	tQuery1 := time.Now()
 	sql := "select id,user_name,time from sys_user where id = ?"
 
 	stat, err := constants.MySQLDB.Prepare(sql)
@@ -81,8 +81,6 @@ func (si *ServiceImpl) GetUserByUserId() (u beans.User, other map[string]interfa
 
 	rs, err := stat.Query(userId)
 	logs.MyErrorLog.CheckPrintlnError("query:", err)
-
-	//	var b bytes.Buffer
 
 	var list []beans.User
 	for rs.Next() {
@@ -95,55 +93,56 @@ func (si *ServiceImpl) GetUserByUserId() (u beans.User, other map[string]interfa
 
 		t1, _ := time.Parse("2006-01-02 15:04:05.999999999", string(time1)) //2006-01-02 15:04:05.99999999
 
-		u := beans.User{
+		uTemp := beans.User{
 			Id: id, Name: name, Time: t1,
 		}
 
-		list = append(list, u)
+		list = append(list, uTemp)
 	}
+	tQuery2 := time.Now()
 
-	/*
-		b.WriteString("[")
-		ll := len(list)
-		for i, v := range list {
-			b.WriteString("{")
-			b.WriteString("\"id\":\"")
-			b.WriteString(strconv.Itoa(v.Id))
-			b.WriteString("\",\"user_name\":\"")
-			b.WriteString(v.Name)
-			b.WriteString("\",\"time\":\"")
-			b.WriteString(v.Time.Format("2006-01-02 15:04:05.9999"))
-			b.WriteString("\"")
-			if ll == i+1 {
-				b.WriteString("}")
-			} else {
-				b.WriteString("},")
-			}
-
-		}
-		b.WriteString("]")
-	*/
-	t2 := time.Now().UnixNano()
+	// 返回结果(性能分析)
+	other = make(map[string]interface{})
+	other["TIME_SQL_SELECT_USER"] = tQuery2.Sub(tQuery1).Seconds()
 
 	u = list[0]
-	other = make(map[string]interface{})
-	other["SQL_EXCU_TIME_BEGIN"] = t1
-	other["SQL_EXCU_TIME_END"] = t2
 	return
-
 }
 
-// 添加User
-func (si *ServiceImpl) Add(user beans.User) string {
+// 新增用户
+func (si *ServiceImpl) Add() (result map[string]interface{}, other map[string]interface{}, err error) {
+	// 入参
+	id := si.InParams["user_id"].(string)
+	userName := si.InParams["user_name"].(string)
+	pw := si.InParams["password"].(string)
+	status := 0
+
+	tEncryptPw1 := time.Now()
+	pwEncrypt := utils.EncryptPassword(pw, id)
+	tEncryptPw2 := time.Now()
+
+	tQuery1 := time.Now()
 	sql := "insert into user(id,user_name,password,time,status)values(?,?,?,?,?)"
 	stat, err := constants.MySQLDB.Prepare(sql)
 	logs.MyInfoLog.CheckPrintlnError("", err)
 
-	rs, err := stat.Exec(user.Id, user.Name, user.Time)
+	rs, err := stat.Exec(id, userName, pwEncrypt, time.Now(), status)
 	logs.MyInfoLog.CheckPrintlnError("", err)
 
 	row, err := rs.RowsAffected()
 	logs.MyInfoLog.CheckPrintlnError("", err)
 
-	return "add success:" + strconv.Itoa(int(row))
+	tQuery2 := time.Now()
+
+	// 返回结果(性能分析)
+	other = make(map[string]interface{})
+	other["TIME_SQL_SELECT_USER"] = tQuery2.Sub(tQuery1).Seconds()
+	other["TIME_ENCRYPT_PASSWORD"] = tEncryptPw2.Sub(tEncryptPw1).Seconds()
+
+	// 返回结果
+	result = make(map[string]interface{})
+	result["MESSAGE"] = "新增用户成功"
+	result["Affected"] = row
+
+	return
 }

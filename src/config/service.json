@@ -150,5 +150,33 @@
                 "remark": "lll"
             }
         ]
+    },
+	{
+        "service_id": "4",
+        "service_name": "获取静态资源",
+        "url": "/static/{fileName}",
+        "method_type": "GET",
+        "regexp": true,
+        "method": "DownloadFileTest",
+        "content_type": "static",
+        "remark": "获取静态资源",
+        "in_params": [
+            {
+                "param_code": "FILE_NAME",
+                "param_name": "文件名",
+                "param_type": "string",
+                "require": true,
+                "length": 32,
+                "remark": ""
+            }
+        ],
+        "out_params": [
+            {
+                "param_code": "FILE_CONTENT",
+                "param_name": "文件",
+                "param_type": "file",
+                "remark": "lll"
+            }
+        ]
     }
 ]
